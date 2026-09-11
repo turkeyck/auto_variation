@@ -26,7 +26,6 @@ print('1)', v)
 v = replace_term(v, r'sg G2X \delta{X}', r'-1/2 sg G2X A_{\mu} A_{\nu} \delta{g^{\mu\nu}}')
 print('2) (metric variation only, A_mu fixed):', v)
 
-rename_dummies(v)
 canonicalise(v)
 print('3) g^{mu nu} field-equation contribution from L2:', v)
 
@@ -44,7 +43,6 @@ print('\n4) vary A_mu, step1:', v2)
 substitute(v2, Ex(r'\delta{X} -> -g^{\mu\nu} A_{\mu} \delta{A_{\nu}}'))
 print('5)', v2)
 
-rename_dummies(v2)
 canonicalise(v2)
 print('6) A_mu field-equation contribution from L2:', v2)
 

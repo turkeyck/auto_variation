@@ -9,6 +9,16 @@ in the same Ex()-parsed string. Build every additive piece as its own
 single-term Ex, transform it with a single-term substitute() rule, and
 combine already-built trees with Python's `+` (never `Ex(str(tree))` --
 that re-parses and re-triggers the bug; use `.copy()` instead).
+
+SECOND, SEPARATE bug found empirically in this same cadabra2 2.4.5.4
+install: `rename_dummies()` raises "No index set for index ... known"
+on perfectly valid contractions of a plain (undeclared-property)
+one-index tensor against an InverseMetric/Symmetric two-index tensor
+(e.g. `g^{mu nu} A_mu A_nu`), regardless of what property (if any) is
+declared on the one-index tensor. `canonicalise()` alone handles the
+exact same expression without complaint (it evidently does its own
+internal dummy-renaming). Workaround: skip `rename_dummies()` and call
+`canonicalise()` directly wherever this occurs.
 """
 from cadabra2 import Ex, substitute
 
