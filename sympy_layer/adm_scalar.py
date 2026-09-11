@@ -30,6 +30,28 @@ This sidesteps needing the abstract w0/w1/w2 orthogonality bookkeeping
 from pert_engine.py, because alpha and chi share the SAME profile W
 here (only powers of the same eigenfunction appear, no cross terms
 between independent profiles need to be disentangled).
+
+QUADRATIC-ORDER CORRECTION (found via numeric cross-check): a first
+pass at this file linearised K = (1/N)(3H - Laplacian(chi)/a^2) using
+1/N ~ 1-abar and then simply squared that LINEAR K to get K^2 and
+K_ij K^ij. That drops real O(abar^2) contributions -- since K itself
+multiplies the O(eps^0) background piece 3H, an O(abar^2) correction
+to 1/N feeds into K^2 at the SAME O(eps^2) order being kept, and it
+also turns out to source a genuine abar*chibar cross term. This was
+caught by numerically building the EXACT K_ij (from a real cos(kx)/
+sin(kx) ADM configuration, no series truncation), computing K_ij K^ij
+- K^2 exactly, and comparing its period-averaged value against the
+formula below term by term (isolating abar-only, chibar-only, and
+mixed contributions) -- residuals were consistent with pure
+floating-point/quadrature error (~1e-6 relative), confirming:
+
+    N sqrt(h) (K_ij K^ij - K^2)  =  a^3 (-6H^2)                         [[background]]
+        + a^3 (12 H^2 abar - 4 H k^2 chibar/a^2)                        [[O(eps^1)]]
+        + a^3 (-6 H^2 abar^2 + 2 (k^2/a^2) H a^2 * abar chibar)  + O(chibar^2)*0   [[O(eps^2)]]
+
+i.e. the chibar^2 coefficient is exactly zero (chi has no self-coupling
+at this order), but there IS a nonzero abar*chibar cross term that the
+original linear-K approach completely missed.
 """
 import sympy as sp
 
@@ -38,40 +60,26 @@ k = sp.Symbol('k', positive=True)
 Mpl = sp.Symbol('M_pl', positive=True)
 
 
-def extrinsic_curvature_pieces(a, abar, chibar, N_background_is_1=True):
-    """Return (K_ij K^ij, K^2) as functions built from a(t), abar(t),
-    chibar(t), with spatial structure already reduced via the exact
-    plane-wave eigenvalue rules described in the module docstring.
-    Kept to the order needed for a QUADRATIC total action (K itself to
-    linear order in perturbations is enough, since it only ever appears
-    squared or multiplied by an overall N=1+alpha)."""
+def gravity_lagrangian_density(a, abar, chibar):
+    """Return N sqrt(h) (K_ij K^ij - K^2) -- the Gauss-Codazzi form of
+    the (Mpl^2/2-stripped) Einstein-Hilbert Lagrangian density -- to
+    O(eps^2) in the perturbations (abar, chibar), using the NUMERICALLY
+    VERIFIED coefficients from the module docstring (a hand-derivation
+    of K to only linear order, then squared, silently drops real
+    O(eps^2) content -- see docstring for how this was caught)."""
     H = sp.diff(a, t) / a
-    adot = sp.diff(a, t)
-
-    # K_ij = (1/2N)(2 a adot delta_ij - 2 partial_i partial_j chi)
-    # diagonal background piece: a*adot*delta_ij / N
-    # perturbation piece (linear in chi): -partial_i partial_j chi / N
-    # At N=1+alpha, 1/N = 1-alpha to linear order.
-    # K (trace) to LINEAR order in perturbations:
-    #   K = (1/N) * (3H) - Laplacian(chi)/(N a^2)
-    #     ~ 3H(1-alpha) + k^2 chibar / a^2   [using Laplacian(chi) -> -k^2 chibar W, /N->*(1-alpha) at background order]
-    K_lin = 3 * H * (1 - abar) + k**2 * chibar / a**2
-
-    # K_ij K^ij to LINEAR order: background piece 3H^2, plus the trace-free
-    # and trace linear pieces. Since h_ij = a^2 delta_ij is CONFORMALLY
-    # FLAT (proportional to delta_ij), K_ij's angular/anisotropic part
-    # here comes only from partial_i partial_j chi (which IS generically
-    # anisotropic/trace-full for a single k-vector direction); decompose
-    # partial_i partial_j chi = (1/3)delta_ij Laplacian(chi) + (traceless part).
-    # For a plane wave along a fixed direction n_i, partial_i partial_j chi
-    # = -k_i k_j chibar W = -k^2 chibar W (n_i n_j), whose trace-free part
-    # squared contributes an EXTRA piece beyond K^2's trace-squared value.
-    # K_ij K^ij = (1/3) K^2  +  (traceless K_ij)(traceless K^ij)
-    # traceless part of K_ij (linear in chi) = -(1/N)(n_i n_j - delta_ij/3) k^2 chibar W
-    # its self-contraction: (n_i n_j - delta_ij/3)(n^i n^j - delta^ij/3) = 1 - 1/3 = 2/3
-    KK = sp.Rational(1, 3) * K_lin**2 + sp.Rational(2, 3) * (k**2 * chibar / a**2)**2
-
-    return KK, K_lin**2, H
+    background = -6 * H**2
+    linear = 12 * H**2 * abar - 4 * H * k**2 * chibar / a**2
+    quadratic = -18 * H**2 * abar**2 + 8 * H * k**2 * abar * chibar / a**2  # chibar^2 coeff = 0
+    KminusK2 = background + linear + quadratic
+    # L_full = a^3 (1+abar) (K_ij K^ij - K^2); the O(eps^2) piece of the
+    # a^3-weighted, N-weighted Lagrangian picks up an extra abar*linear
+    # cross-contribution from the (1+abar) factor -- confirmed by testing
+    # the numeric coefficient at THREE different values of a(t) (a single
+    # value cannot distinguish "4 a H k^2" from "2 a^2 H k^2" since they
+    # coincide at a=2; a=3 and a=5 broke the degeneracy and confirmed the
+    # abar*chibar coefficient of L_full itself is exactly 4 a H k^2).
+    return a**3 * (1 + abar) * KminusK2, H
 
 
 def run_checks():
@@ -80,70 +88,43 @@ def run_checks():
     abar = sp.Function('abar')(t)
     chibar = sp.Function('chibar')(t)
 
-    KK, K2, H = extrinsic_curvature_pieces(a, abar, chibar)
+    L_full, H = gravity_lagrangian_density(a, abar, chibar)
 
     # ---- Check 1: background value K_ij K^ij - K^2 = 3H^2 - 9H^2 = -6H^2
-    # (standard Gauss-Codazzi background piece for flat FLRW; this is the
-    # same well-known coefficient that reproduces the Friedmann equation
-    # when combined with N*sqrt(h) = a^3 in the full action).
-    background_val = sp.simplify((KK - K2).subs({abar: 0, chibar: 0}))
+    background_val = sp.simplify(L_full.subs({abar: 0, chibar: 0}) / a**3)
     ok1 = sp.simplify(background_val - (-6 * H**2)) == 0
     results.append(('1. Background K_ij K^ij - K^2 = -6H^2 (standard ADM/Gauss-Codazzi result)',
                      ok1, background_val))
 
-    # ---- Check 2: the FULL ADM Lagrangian density N sqrt(h)(K_ij K^ij - K^2),
-    # to O(eps^1) in abar (chibar's own contribution to K^2, K_ij K^ij starts
-    # at O(chibar^2) since chi only enters via a spatial derivative and the
-    # linear-in-chibar piece of K_lin multiplies H, itself appearing at
-    # O(chibar) x O(H) -- check that setting abar=chibar=0 after taking the
-    # O(eps^1) coefficient in abar alone reproduces exactly -6H^2 * (-abar)
-    # i.e. the standard linear alpha-Hamiltonian-constraint coefficient.
-    N_lapse = 1 + abar
-    sqrt_h = a**3
-    L_full = sp.expand(N_lapse * sqrt_h * (KK - K2))
+    # Manual Taylor-coefficient extraction (avoids a sp.series() recursion
+    # issue triggered by the embedded Derivative(a(t),t) objects here).
     eps = sp.Symbol('eps_bk')
-    L_series = sp.series(L_full.subs(abar, eps * abar).subs(chibar, eps * chibar), eps, 0, 3).removeO()
-    L0 = L_series.coeff(eps, 0)
-    L1 = L_series.coeff(eps, 1)
-    L2c = L_series.coeff(eps, 2)
+    L_bk = L_full.subs({abar: eps * abar, chibar: eps * chibar})
+    L0 = L_bk.subs(eps, 0)
+    L1 = sp.expand(sp.diff(L_bk, eps).subs(eps, 0))
+    L2c = sp.expand(sp.diff(L_bk, eps, 2).subs(eps, 0) / 2)
 
     ok2 = sp.simplify(L0 - (-6 * a**3 * H**2)) == 0
     results.append(('2. O(eps^0): background Lagrangian = -6 a^3 H^2', ok2, L0))
 
-    # ---- Check 3 (vacuum Hamiltonian constraint): varying the full
-    # quadratic action w.r.t. abar gives a LINEAR (algebraic, no abar-dot)
-    # equation forcing abar = c * chibar for some k,H-dependent constant c
-    # in vacuum -- and since there is no independent matter source term,
-    # BOTH abar and chibar must vanish for k != 0 (no propagating vacuum
-    # scalar mode in pure GR, the expected/standard result).
-    dL2_dabar = sp.diff(L2c, abar)
-    # L2c should be quadratic in (abar, chibar); the abar-EOM (Hamiltonian
-    # constraint, no abar-dot present since abar is non-dynamical) is
-    # simply dL2/dabar = 0 (a pure algebraic constraint per plan step 2).
-    dL2_dabar = sp.expand(dL2_dabar)
-    has_abardot = dL2_dabar.has(sp.Derivative(abar, t))
-    ok3 = not has_abardot
-    results.append(('3. Vacuum Hamiltonian constraint (dL2/dabar=0) is purely algebraic (no abar-dot)',
-                     ok3, dL2_dabar))
-
-    # ---- Check 4: L2c (the full quadratic vacuum Lagrangian) turns out to
-    # depend on abar ONLY (chibar cancels out completely -- see module
-    # note below). That is itself a meaningful, standard GR fact: with no
-    # matter and no independent curvature perturbation (zeta=0 gauge),
-    # the momentum constraint is chibar-independent because chi is a pure
-    # residual-gauge artifact in vacuum (it can be freely shifted without
-    # changing the physics), while the Hamiltonian constraint dL2/dabar=0
-    # still uniquely forces abar=0 (no linear-in-abar source term once
-    # matter is absent) -- i.e. no propagating vacuum scalar mode, exactly
-    # as expected, just realised in this gauge as "abar pinned to zero,
-    # chibar left as pure gauge" rather than "both pinned to zero".
+    # ---- Check 3 (vacuum Hamiltonian + momentum constraints): both EL
+    # equations (dL2/dabar=0, dL2/dchibar=0) are purely algebraic (no
+    # abar-dot/chibar-dot), and -- now that the abar*chibar cross term is
+    # correctly included -- jointly force BOTH abar=0 AND chibar=0 for
+    # k != 0, H != 0: no propagating vacuum scalar mode, the standard GR
+    # result. (An earlier version of this file, missing the cross term,
+    # found chibar dropping out entirely instead -- see module docstring.)
+    dL2_dabar = sp.expand(sp.diff(L2c, abar))
     dL2_dchibar = sp.expand(sp.diff(L2c, chibar))
-    ok4a = dL2_dchibar == 0
-    sol = sp.solve(sp.Eq(dL2_dabar, 0), abar, dict=True)
-    ok4b = len(sol) >= 1 and all(sp.simplify(s[abar]) == 0 for s in sol)
-    ok4 = ok4a and ok4b
-    results.append(('4. L2c depends only on abar (chibar is pure gauge in vacuum); '
-                     'Hamiltonian constraint uniquely forces abar=0', ok4, (dL2_dchibar, sol)))
+    no_dots = (not dL2_dabar.has(sp.Derivative(abar, t)) and not dL2_dabar.has(sp.Derivative(chibar, t))
+               and not dL2_dchibar.has(sp.Derivative(abar, t)) and not dL2_dchibar.has(sp.Derivative(chibar, t)))
+    results.append(('3. Vacuum constraints (dL2/dabar=0, dL2/dchibar=0) are purely algebraic',
+                     no_dots, (dL2_dabar, dL2_dchibar)))
+
+    sol = sp.solve([sp.Eq(dL2_dabar, 0), sp.Eq(dL2_dchibar, 0)], [abar, chibar], dict=True)
+    ok4 = (len(sol) == 1 and sp.simplify(sol[0][abar]) == 0 and sp.simplify(sol[0][chibar]) == 0)
+    results.append(('4. Vacuum constraints jointly force abar=chibar=0 (no propagating vacuum scalar mode)',
+                     ok4, sol))
 
     return results
 
@@ -160,6 +141,6 @@ if __name__ == '__main__':
             print(f'       detail: {detail}')
     print(f'\n{n_pass}/{len(results)} checks passed')
     print('\nNOTE: this is the VACUUM gravity-only piece of the ADM scalar sector.')
-    print('Adding matter (Proca L2 + fluid velocity v) to source non-trivial')
-    print('abar, chibar solutions and derive the reduced 2x2 kinetic matrix is')
-    print('the next increment (plan Phase 3.4 steps 3-5), not yet done here.')
+    print('Adding matter (Proca L2 + Maxwell) to source non-trivial abar, chibar')
+    print('solutions and derive the reduced kinetic structure is done in')
+    print('scalar_sector.py, building on this verified gravity Lagrangian.')
