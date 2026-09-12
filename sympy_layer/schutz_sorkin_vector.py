@@ -1,6 +1,16 @@
 """
-Reproduce arXiv:1603.05806 equations (3.35)-(3.38): the Schutz-Sorkin
-perfect-fluid VECTOR-type perturbation sector.
+Reproduce arXiv:1603.05806 equations (3.20)-(3.23) (labels LVM, Wiex,
+the unlabeled u_i definition, and conser): the Schutz-Sorkin perfect-
+fluid VECTOR-type perturbation sector.
+
+CORRECTION: an earlier version of this file called these "(3.35)-
+(3.38)" based on an ar5iv HTML auto-numbering that turned out to be
+wrong. The actual numbers were confirmed by installing TeX Live and
+running pdflatex on the paper's own arXiv e-print source, then reading
+the equation numbers straight out of the resulting .aux file's
+\\newlabel entries -- the authoritative source, not OCR, not an HTML
+converter's guess, not memory. The physics/derivation below was never
+affected by this -- only the citation label was wrong.
 
 Source verified directly against the paper's own LaTeX (jcapresub1.tex,
 downloaded from the arXiv e-print, not the OCR'd PDF -- exact, not
@@ -20,7 +30,7 @@ reconstructed from memory):
 This file builds S_M to quadratic order in (V_i, W_i, delta A_i, delta B_i)
 directly from the Schutz-Sorkin action (not by copying the paper's
 already-reduced result), and checks the result against paper eqs.
-(3.35)-(3.38) term by term.
+(3.20)-(3.23) term by term.
 """
 import sympy as sp
 
@@ -39,7 +49,7 @@ N0 = sp.Symbol('N0', positive=True)  # curly-N_0 = n0 a^3, a constant
 def build_action_from_scratch():
     """Build (S_V^(2))_M directly from the Schutz-Sorkin action, i.e.
     derive n to O(eps^2) from its own definition and expand rho_M(n)
-    and the J.dell, J.A.dB pieces -- not copying eq (3.35).
+    and the J.dell, J.A.dB pieces -- not copying eq (3.20).
 
     Uses explicit eps bookkeeping (every perturbation tagged eps*(...))
     and manual Taylor-coefficient extraction, NOT sequential single-
@@ -92,7 +102,7 @@ def run_checks():
     results = []
     L_derived, Vi, Wi, dAi, dBidot = build_action_from_scratch()
 
-    # ---- paper's eq (3.35), transcribed directly from its own bracket
+    # ---- paper's eq (3.20), transcribed directly from its own bracket
     # (1/(2a^2 N0)){rho_Mn(W_i^2+N0^2 V_i^2) + N0(2 rho_Mn V_i W_i - a^3 rho_M V_i^2)}
     # - N0 deltaA_i deltaBidot - (1/a^2) W_i deltaA_i
     L_paper = sp.expand(
@@ -104,18 +114,18 @@ def run_checks():
     diff = sp.simplify(L_derived - L_paper)
     ok1 = diff == 0
     results.append(('1. (S_V^(2))_M built from scratch (Schutz-Sorkin action, n from its own '
-                     'definition) matches paper eq (3.35) term by term', ok1, diff))
+                     'definition) matches paper eq (3.20) term by term', ok1, diff))
 
-    # ---- eq (3.36): vary w.r.t. W_i
+    # ---- eq (3.21): vary w.r.t. W_i
     dL_dWi = sp.diff(L_derived, Wi)
     Wi_sol = sp.solve(sp.Eq(dL_dWi, 0), Wi)[0]
     Wi_sol = sp.simplify(Wi_sol)
     Wi_paper = N0 * (dAi - rho_Mn * Vi) / rho_Mn
     ok2 = sp.simplify(Wi_sol - Wi_paper) == 0
-    results.append(('2. Varying w.r.t. W_i reproduces eq (3.36): W_i = N0(deltaA_i - rho_Mn V_i)/rho_Mn',
+    results.append(('2. Varying w.r.t. W_i reproduces eq (3.21): W_i = N0(deltaA_i - rho_Mn V_i)/rho_Mn',
                      ok2, Wi_sol))
 
-    # ---- eq (3.37)/(3.38): substitute W_i, vary w.r.t. delta A_i
+    # ---- eq (3.22)/(3.23): substitute W_i, vary w.r.t. delta A_i
     L_step1 = sp.expand(L_derived.subs(Wi, Wi_sol))
     dL_ddAi = sp.diff(L_step1, dAi)
     dAi_sol = sp.solve(sp.Eq(dL_ddAi, 0), dAi)[0]
@@ -124,10 +134,10 @@ def run_checks():
     ui_expected = Vi - a**2 * dBidot
     dAi_paper = rho_Mn * ui_expected
     ok3 = sp.simplify(dAi_sol - dAi_paper) == 0
-    results.append(('3. Varying w.r.t. delta A_i (after substituting W_i) reproduces eq (3.37)+(delAi): '
+    results.append(('3. Varying w.r.t. delta A_i (after substituting W_i) reproduces eq (3.22)+(delAi): '
                      'delta A_i = rho_Mn (V_i - a^2 deltaB_i_dot) = rho_Mn u_i', ok3, dAi_sol))
 
-    # ---- eq (3.38): the conservation relation rho_Mn u_i = (rho_M+P_M)/n0 u_i = const
+    # ---- eq (3.23): the conservation relation rho_Mn u_i = (rho_M+P_M)/n0 u_i = const
     # comes from varying w.r.t delta B_i (whose own EOM is the EL/time-derivative
     # equation for the now-substituted action -- check it reduces to d/dt(rho_Mn u_i)=0
     # i.e. rho_Mn u_i is a constant of motion).
@@ -138,10 +148,10 @@ def run_checks():
     dL_ddBidot = sp.simplify(sp.diff(L_step2, dBidot))
     # dL/d(deltaBidot) = -N0 * rho_Mn * u_i; N0 is a genuine time-independent
     # constant (paper: "N0 = n0 a^3 is a constant"), so this being conserved
-    # is equivalent to the paper's stated rho_Mn*u_i = const (eq 3.38).
+    # is equivalent to the paper's stated rho_Mn*u_i = const (eq 3.23).
     ok4 = sp.simplify(dL_ddBidot - (-N0 * rho_Mn * ui_expected)) == 0
     results.append(('4. EL derivative w.r.t. delta B_i involves only d(dL/d(deltaBidot))/dt=0, i.e. '
-                     'dL/d(deltaBidot) proportional to rho_Mn*u_i is conserved, matching eq (3.38)',
+                     'dL/d(deltaBidot) proportional to rho_Mn*u_i is conserved, matching eq (3.23)',
                      ok4, dL_ddBidot))
 
     return results
