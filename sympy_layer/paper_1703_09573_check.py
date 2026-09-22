@@ -7,7 +7,9 @@ Unlike every other check in this repo -- which tests INTERNAL consistency
 (GR limits, no-ghost positivity, numeric spot-checks) -- this file
 transcribes the paper's own equations verbatim and asks whether the code
 reproduces them. That distinction matters: all 40 of the repo's internal
-checks pass while two of the results below are wrong.
+checks passed while two results were wrong. One of those (the lapse
+equation, B3/B4) is now fixed in proca_minisuperspace.py; the other (the
+off-shell scalar-sector background, D2) still stands.
 
 Target equations (the ones the project is supposed to reproduce):
     (3.3)        tensor quadratic action,       via (3.4) qT, (3.5) cT^2
@@ -96,9 +98,9 @@ def check_background():
     gauge = {N_t: 1, sp.diff(N_t, t): 0, sp.diff(N_t, t, 2): 0}
     Ndot = sp.diff(N_t, t)
 
-    # ---- the repo's own EL equations, plus the CORRECT lapse equation ----
+    # ---- the repo's own EL equations, plus the naive one that drops -d/dt(dL/dNdot) ----
     EL_N_repo, EL_a, EL_A0 = PM.euler_lagrange_all(data)
-    EL_N_full = sp.simplify((sp.diff(L, N_t) - sp.diff(sp.diff(L, Ndot), t)).subs(gauge))
+    EL_N_naive = sp.simplify(sp.diff(L, N_t).subs(gauge))
 
     # ---- paper (2.11)-(2.13), verbatim, with G5 = 0 (repo has no L5) and rho_M = P_M = 0 ----
     X_t = data['X_t'].subs({N_t: 1})
@@ -128,14 +130,16 @@ def check_background():
     out.append(('B2. (2.13) vector-field equation matches EL_A0', ok, f'ratio = {r}'))
 
     ok_repo, r_repo = _proportional(_to_H(EL_N_repo, a_t, H, Hd), eq211, forbidden)
-    out.append(('B3. (2.11) Friedmann "00" equation matches EL_N as the repo computes it',
-                ok_repo, 'ratio is not a pure power of a(t): the G3 terms disagree'))
+    out.append(('B3. (2.11) Friedmann "00" equation matches EL_N', ok_repo, f'ratio = {r_repo}'))
 
-    ok_full, r_full = _proportional(_to_H(EL_N_full, a_t, H, Hd), eq211, forbidden)
-    out.append(('B4. DIAGNOSIS: (2.11) DOES match once EL_N includes the omitted '
-                '-d/dt(dL/dNdot) term  [euler_lagrange_all uses EL_N = dL/dN only, but the '
-                'integrated-by-parts L3 term depends on Ndot through Xdot]',
-                ok_full, f'ratio = {r_full}'))
+    # Regression guard for the defect B3 used to expose: L_total genuinely depends on
+    # Ndot (through the integrated-by-parts L3 term), so an EL_N built from dL/dN alone
+    # gets the G3 sector wrong. Both halves must hold, or the fix has been reverted.
+    ok_naive, r_naive = _proportional(_to_H(EL_N_naive, a_t, H, Hd), eq211, forbidden)
+    out.append(('B4. REGRESSION GUARD: L depends on Ndot, and dropping -d/dt(dL/dNdot) '
+                'would break (2.11) again',
+                sp.simplify(sp.diff(L, Ndot)) != 0 and not ok_naive,
+                f'dL/dNdot = {sp.simplify(sp.diff(L, Ndot))}; naive-EL_N ratio = {r_naive}'))
 
     out.append(('B5. GAP: L5 is absent from build_lagrangian(), so (2.11)-(2.13) can only be '
                 'tested with G5 = 0 -- yet every G5 term in (3.4),(3.5),(3.8),(3.16)-(3.22) '
@@ -250,7 +254,9 @@ reproduced by this repo.
                   makes (3.8) non-trivial has been set to zero.
   (3.10)-(3.15)-- cannot be compared: the implemented theory forces phi = 0,
                   where the paper's scalar variables are singular.
-Two genuine defects were found that the repo's 40 internal checks all miss:
-  * EL_N omits -d/dt(dL/dNdot), corrupting the Friedmann equation when G3 != 0 (B3/B4)
-  * the scalar sector runs on a background that violates its own field equation (D2)
+Two genuine defects were found that the repo's 40 internal checks all missed:
+  * EL_N omitted -d/dt(dL/dNdot), corrupting the Friedmann equation when
+    G3 != 0 -- FIXED in proca_minisuperspace.py; B3 now passes and B4 guards it
+  * the scalar sector runs on a background that violates its own field
+    equation (D2) -- STILL OPEN
 """)

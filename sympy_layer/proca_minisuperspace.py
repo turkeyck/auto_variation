@@ -110,8 +110,16 @@ def euler_lagrange_all(data):
     L = data['L_total']
     a_t, N_t, A0_t = data['a_t'], data['N_t'], data['A0_t']
 
-    # EL w.r.t. N: constraint ("00" equation)
-    EL_N = sp.diff(L, N_t)
+    # EL w.r.t. N: constraint ("00" equation).
+    # The -d/dt(dL/dNdot) piece is NOT optional here: the integrated-by-parts
+    # L3 term a^3 A0 G3,X Xdot / N carries Ndot inside Xdot = d/dt[A0^2/(2N^2)],
+    # so dropping it silently corrupts the whole G3 sector of the Friedmann
+    # equation while leaving every internal self-check in this repo passing.
+    # Caught by comparing against Eq (2.11) of arXiv:1703.09573v2 -- see
+    # paper_1703_09573_check.py, check B3/B4.
+    dL_dNdot = sp.diff(L, sp.diff(N_t, t))
+    dL_dN = sp.diff(L, N_t)
+    EL_N = dL_dN - sp.diff(dL_dNdot, t)
 
     # EL w.r.t. a: dynamical ("ii") equation
     a_s, ad_s = sp.symbols('a_s ad_s')
