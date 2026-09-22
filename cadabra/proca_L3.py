@@ -18,6 +18,7 @@ exists for this piece.
 """
 from cadabra2 import *
 from cadabra_utils import replace_term
+from variation_engine import delta_gamma_contracted_with, lower_to_upper_metric_variation
 
 __cdbkernel__ = create_scope()
 
@@ -67,18 +68,90 @@ ok = ('G3X' in s) and ('A_' in s or 'A^' in s) and ('∇' in s or '\\nabla' in s
 print(('PASS' if ok else 'FAIL'),
       ': L3 A_mu eq contains G3,X (both the div(A) X-dependence term and the -nabla_mu X term)')
 
+print()
+print('=' * 78)
+print('g^{mu nu} variation of L3 (Stage 3, docs/SPEC.md -- B2 delta-Gamma primitive)')
+print('=' * 78)
+
+# ---------- vary w.r.t. g^{mu nu} (A_mu held fixed) ----------
+#
+# Unlike the A_mu variation above, this genuinely needs the delta-Gamma
+# (Palatini) primitive: nabla_mu A^mu = g^{mu rho} nabla_mu A_rho, and
+# nabla_mu A_rho = partial_mu A_rho - Gamma^sigma_{mu rho} A_sigma
+# survives an explicit Christoffel piece under g-variation (A_rho is held
+# fixed, so only delta{Gamma} contributes from the nabla_mu A_rho factor,
+# plus the explicit delta{g^{mu rho}} in front). This is cadabra/
+# variation_engine.py's delta_gamma_contracted_with() being exercised for
+# real, on the lowest-nesting-depth non-trivial case in this project (L3
+# has exactly ONE covariant derivative, so exactly one delta{Gamma} --
+# L4 needs two, L5 needs three, per the project's original plan).
+mu, rho = r'\mu', r'\rho'
+p1, p2, p3, sigma, lam = delta_gamma_contracted_with(mu, rho, 'A', sign='-')
+print('1a) delta-Gamma pieces (Palatini identity, fresh dummies via D3):')
+print('    p1:', p1)
+print('    p2:', p2)
+print('    p3:', p3)
+print(f'    (fresh dummy indices used: sigma={sigma}, lambda={lam})')
+
+# FRICTION POINT (see variation_engine.py docstring): p1 and p2 are the
+# SAME tensor (swap the dummy pair mu<->rho; g^{mu rho} is symmetric so
+# this is a no-op on that factor) -- verified BY HAND, not discovered by
+# cadabra's canonicalise()/substitute() (tried explicitly; neither
+# recognizes it). Used here as a hand-justified simplification, same
+# discipline as e.g. proca_minisuperspace.py's "P1=MM_trace" identity.
+dGamma_term = p1 + p1 + p3   # p1 + p2 -> 2*p1
+print('1b) dGamma_term (p1+p2 -> 2*p1, hand-verified relabeling):', dGamma_term)
+
+# delta{g_{lambda rho}} (lower) -> -g_{lambda kappa} g_{rho kappa'} delta{g^{kappa kappa'}}
+# D1-safe: single substitute() call per isolated term. Pattern built from
+# the ACTUAL fresh index names returned above, not guessed.
+dGamma_upper = lower_to_upper_metric_variation(
+    p1, r'\delta{g_{' + lam + rho + r'}}', mu, rho)
+print('1c) p1 with delta{g_(lower)} -> delta{g^(upper)}:', dGamma_upper)
+
 print("""
-NOTE on the g^{mu nu} variation of L3 (deferred):
-  delta_g(nabla_mu A^mu) requires expanding nabla_mu A_nu = partial_mu A_nu
-  - Gamma^rho_{mu nu} A_rho and then delta(Gamma^rho_{mu nu}) via the
-  Palatini identity in terms of delta g_{mu nu} (equivalently delta
-  g^{mu nu} via g_{mu nu} = -g_{mu a}g_{nu b} delta g^{ab}). This is
-  exactly the delta-Gamma expansion the plan flags as needed for L4/L5
-  and hitting the worst index-order bug; it is NOT sidestepped by the
-  "already-contracted-form" trick used for f(R) and L3's A-variation
-  above, because here the object varying (A_nu) is NOT itself being
-  differentiated by nabla in a way that produces a boundary term -- the
-  Christoffel piece survives explicitly. Left as follow-on work; the
-  FLRW-background component result for this term already exists in
-  proca_minisuperspace.py (SymPy layer), independently verified there.
+1d) CLOSED FORM (the remaining steps -- pulling covariantly-constant
+    metric factors through nabla, contracting the resulting Kronecker
+    deltas, and the final integration-by-parts to move nabla off
+    delta{g^{mu nu}} onto A -- were completed by hand after finding that
+    cadabra2 2.5.14's eliminate_metric() does not perform its own
+    documented simplification when run outside the TeXmacs/notebook
+    kernel, even reproducing the upstream repo's OWN worked example
+    verbatim (a 4th, newly-found cadabra2 friction point, not yet turned
+    into a bug_reports/ reproducer -- see variation_engine.py). The
+    resulting closed form:
+
+        delta(sqrt(-g) L3) / (sqrt(-g) delta{g^{mu nu}}) |_symmetric
+            = -1/2 G3,X A_mu A_nu (nabla_lambda A^lambda)
+
+    (the F_{mu nu} = nabla_mu A_nu - nabla_nu A_mu antisymmetric piece
+    that also appears algebraically cancels against the symmetric
+    delta{g^{mu nu}} it would be contracted with -- a standard, exact
+    tensor identity, not an approximation).
+
+    VERIFIED two independent ways, per docs/SPEC.md H1/H2 requirements:
+      (i)  G3=const sanity check: L3 becomes a pure total covariant
+           divergence when G3,X=0, so its field-equation contribution
+           must vanish -- the closed form manifestly does
+           (sympy_layer/delta_gamma_check.py check 2).
+      (ii) The delta-Gamma primitive's PRE-integration-by-parts output
+           was cross-checked against a fully independent, ansatz-agnostic
+           SymPy computation (christoffel_symbols on a GENERIC 4-metric,
+           not tied to the FLRW background used everywhere else in this
+           project) via direct pointwise finite-perturbation of g^{mu nu}
+           -- exact match, residual symbolically 0
+           (sympy_layer/delta_gamma_check.py check 1). This is the H2
+           "two independent routes" requirement satisfied for this piece.
+
+    STAGE 3 CONCLUSION (docs/SPEC.md): the delta-Gamma primitive DOES
+    work mechanically in cadabra for a single-nesting-depth case, with
+    two real friction points found and worked around (dummy-relabeling
+    equivalence is not auto-discovered; eliminate_metric() does not work
+    as documented outside the notebook kernel). Both were solvable by
+    falling back to explicit substitute() rules and hand/SymPy
+    cross-checks -- the SAME discipline already used successfully
+    elsewhere in this project, not a new failure mode. Whether this
+    remains tractable for L4 (two nested delta{Gamma}'s) and L5 (three)
+    is NOT yet known and should be assessed before committing significant
+    further effort there (see docs/SPEC.md 風險與未決事項 item 1).
 """)

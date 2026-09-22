@@ -1,4 +1,18 @@
 """
+SUPERSEDED (docs/SPEC.md Stage 4, 2026-09-18): the k-essence duality this
+file uses (see next paragraph) does NOT satisfy your project spec's
+module G requirement ("不接受用 k-essence 純量場或其他「對偶替身」代替"
+-- a k-essence stand-in is not accepted even if it is numerically close
+in some limit). sympy_layer/schutz_sorkin_scalar.py now provides a
+genuine, from-scratch Schutz-Sorkin J^mu derivation of delta_rho_M and v,
+verified against arXiv:1605.05066's own eq (SMS)/(deltaj) term-by-term
+(see that file's docstring). This file is KEPT for reference/history
+(its own checks below still pass, and it remains a useful comparison
+point for what a k-essence stand-in gets numerically right vs. wrong),
+but must not be cited as satisfying the Schutz-Sorkin requirement for
+reproducing arXiv:1703.09573 eq (3.10)-(3.15) -- use
+schutz_sorkin_scalar.py for that.
+
 Phase 3.4, check 3.e -- GR + massive vector field + perfect fluid,
 building the genuine 2x2 kinetic system the plan describes.
 

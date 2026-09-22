@@ -80,7 +80,6 @@ substitute(v_no_FR, Ex(r'sg F g^{\mu\nu}\delta{R_{\mu\nu}} -> 0'))
 v_final = v_no_FR + box_converted
 print('4) final (before collecting delta{g^{mu nu}}):', v_final)
 
-rename_dummies(v_final)
 canonicalise(v_final)
 print('5) canonicalised:', v_final)
 

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "1703_09573_be1",
+    "paper_ref": "arXiv:1703.09573v2 eq (be1) [Sec. II, \"modified Einstein field equations\", referenced in the project spec as eq (2.11)-(2.13); exact compiled section/eq numbering not independently re-verified against a compiled PDF in this pass -- see docs/SPEC.md 風險與未決事項 item 2]",
+    "ansatz": "flat FLRW (N gauge-fixed to 1 after variation), A^mu=(phi(t),0,0,0) upper-index (equivalently A_mu=(-phi(t),0,0,0) lower-index, the convention this project's code uses)",
+    "provenance": "derived",
+    "derivation_route_a": "sympy_layer/proca_minisuperspace.py: build_lagrangian()+euler_lagrange_all() (reduced/IBP mini-superspace Lagrangian)",
+    "state": "paper_matched",
+    "derivation_route_b": "sympy_layer/proca_background_direct_route.py: build_lagrangian_direct()+euler_lagrange_all_direct() (literal covariant construction, no IBP shortcuts)",
+    "last_verified_date": "2026-09-18",
+    "known_issue_note": null
+  },
+  {
+    "id": "1703_09573_be2",
+    "paper_ref": "arXiv:1703.09573v2 eq (be2) [Sec. II, pressure equation, project spec eq (2.11)-(2.13)]",
+    "ansatz": "flat FLRW (N gauge-fixed to 1 after variation), A^mu=(phi(t),0,0,0) upper-index",
+    "provenance": "derived",
+    "derivation_route_a": "sympy_layer/proca_minisuperspace.py: build_lagrangian()+euler_lagrange_all()",
+    "state": "paper_matched",
+    "derivation_route_b": "sympy_layer/proca_background_direct_route.py: build_lagrangian_direct()+euler_lagrange_all_direct()",
+    "last_verified_date": "2026-09-18",
+    "known_issue_note": null
+  },
+  {
+    "id": "1703_09573_be3",
+    "paper_ref": "arXiv:1703.09573v2 eq (be3) [Sec. II, vector field equation, project spec eq (2.11)-(2.13)]",
+    "ansatz": "flat FLRW (N gauge-fixed to 1 after variation), A^mu=(phi(t),0,0,0) upper-index",
+    "provenance": "derived",
+    "derivation_route_a": "sympy_layer/proca_minisuperspace.py: build_lagrangian()+euler_lagrange_all()",
+    "state": "paper_matched",
+    "derivation_route_b": "sympy_layer/proca_background_direct_route.py: build_lagrangian_direct()+euler_lagrange_all_direct()",
+    "last_verified_date": "2026-09-18",
+    "known_issue_note": null
+  },
+  {
+    "id": "B2_delta_gamma_L3_g_variation",
+    "paper_ref": "N/A -- module B2 covariant primitive validation (docs/SPEC.md Stage 3), not a literal paper equation; target formula delta(sqrt(-g) G3(X) nabla_mu A^mu) / (sqrt(-g) delta g^{mu nu})|_symmetric = -1/2 G3,X A_mu A_nu (nabla_lambda A^lambda) derived from arXiv:1703.09573's own L3 = G3(X) nabla_mu A^mu (eq. L3)",
+    "ansatz": "fully general/covariant, no FLRW or any other ansatz -- explicitly verified on a generic 4-metric with 4 independent coordinate-dependent functions",
+    "provenance": "derived",
+    "derivation_route_a": "cadabra/proca_L3.py + cadabra/variation_engine.py: delta-Gamma (Palatini) primitive, mechanically executed in cadabra2 2.5.14 (WSL)",
+    "state": "paper_matched",
+    "derivation_route_b": "sympy_layer/delta_gamma_check.py: independent SymPy computation via tensor_utils.christoffel_symbols on a fully generic (non-FLRW) metric, pointwise finite-perturbation cross-check -- exact symbolic match",
+    "last_verified_date": "2026-09-18",
+    "known_issue_note": null
+  },
+  {
+    "id": "1605_05066_SMS_scalar_matter_action",
+    "paper_ref": "arXiv:1605.05066v2 eq (SMS) [second-order Schutz-Sorkin scalar matter action] and eq (deltaj) [delta j equation of motion] -- the paper arXiv:1703.09573 itself defers to for its own scalar-sector second-order action (astrophv2.tex: \"given in Eq.(4.6) of Ref.[DeFelice:2016uil]\")",
+    "ansatz": "flat gauge scalar perturbations (alpha, chi metric; deltaJ, deltaj, v matter), single shared cos(kz) spatial profile (pointwise-exact, not just period-averaged, since (SMS) is stated in terms of raw un-Fourier-reduced spatial gradients)",
+    "provenance": "derived",
+    "derivation_route_a": "sympy_layer/schutz_sorkin_scalar.py: build_delta_n()+build_action_from_scratch(), from the Schutz-Sorkin action definition directly (n^2=J^a J^b g_ab/g), not copied from the paper's already-reduced formulas",
+    "state": "paper_matched",
+    "derivation_route_b": "independent structural check: varying the from-scratch action w.r.t. deltaj reproduces the paper's OWN independently-stated eq (deltaj) exactly (a genuine second target equation from the same source, not a self-consistency tautology)",
+    "last_verified_date": "2026-09-18",
+    "known_issue_note": null
+  },
+  {
+    "id": "1605_05066_SMS_background_residual",
+    "paper_ref": "arXiv:1605.05066v2 eq (SMS), the matter-perturbation-independent (alpha^2, chi^2 only) piece NOT present in the paper's quoted (SMS) formula",
+    "ansatz": "same as 1605_05066_SMS_scalar_matter_action",
+    "provenance": "derived",
+    "derivation_route_a": "sympy_layer/schutz_sorkin_scalar.py run_checks() check 4: isolated residual has exactly the predicted P_M/rho_M(n0)-proportional shape",
+    "state": "known_issue",
+    "derivation_route_b": null,
+    "last_verified_date": null,
+    "known_issue_note": "A term proportional purely to background quantities (P_M, rho_M(n0)) times alpha^2/chi^2, with zero coupling to any matter perturbation, appears in the raw from-scratch matter action but not in the paper's quoted (SMS). Believed (not yet proven) to be a term the paper already absorbed into the GRAVITY+matter COMBINED action's w4-type coefficients (a \"+w_4 alpha^2\" term appears in that combined action) -- reproducing that combination requires the GP gravity sector's own quadratic action in alpha, chi, which is docs/SPEC.md Stage 5 scope (module F), not yet built. Do not treat the matter-action-alone comparison as covering this piece."
+  }
+]

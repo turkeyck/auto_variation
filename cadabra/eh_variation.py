@@ -31,7 +31,6 @@ substitute(v, Ex(r'\nabla_{\rho}{w^{\rho}} -> 0'))
 print('3)', v)
 
 substitute(v, Ex(r'g^{\mu\nu} R_{\mu\nu} -> R'))
-rename_dummies(v)
 canonicalise(v)
 print('4)', v)
 
